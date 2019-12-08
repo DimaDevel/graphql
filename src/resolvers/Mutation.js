@@ -162,7 +162,7 @@ const Mutation = {
         return post;
     },
     createComment(parent, args, { db, pubsub }, info) {
-        if (!args.data.text) throw new Error('Can not create comment with empty fiels text');
+        if (!args.data.text) throw new Error('Can not create comment with empty fields text');
         const userExists = db.users.some(user => user.id === args.data.author);
         const postExistAndPublished = db.posts.some(post => post.id === args.data.post && post.published);
 
@@ -175,20 +175,39 @@ const Mutation = {
         }
 
         db.comments.push(comment);
-        pubsub.publish(`comment ${args.data.post}`, { comment });
+        pubsub.publish(`comment ${args.data.post}`, { 
+            comment: {
+                mutation: 'CREATED',
+                data: comment
+            }
+         });
 
         return comment;
     },
-    deleteComment(parent, args, { db }, info) {
+    deleteComment(parent, args, { db, pubsub }, info) {
         const commentIndex = db.comments.findIndex(comment => comment.id === args.id);
 
         if (commentIndex === -1) {
             throw new Error('Comment not found.');
         }
+        const [comment] = db.comments.splice(commentIndex, 1);
 
-        return db.comments.splice(commentIndex, 1)[0];
+        if (!comment) {
+            throw new Error('Can not delete comment.');
+        }
+
+        const post = db.posts.find(post => post.id === comment.post);
+
+        pubsub.publish(`comment ${post.id}`, {
+            comment: {
+                mutation: 'DELETED',
+                data: comment
+            }
+        });
+
+        return comment;
     },
-    updateComment(parent, args, { db }, info) {
+    updateComment(parent, args, { db, pubsub }, info) {
         const { id, data } = args;
         const comment = db.comments.find(comment => comment.id === id);
 
@@ -198,6 +217,13 @@ const Mutation = {
 
         if (typeof data.text === 'string') {
             comment.text = data.text;
+            const post = db.posts.find(post => post.id === comment.post);
+            pubsub.publish(`comment ${post.id}`, {
+                comment: {
+                    mutation: 'UPDATED',
+                    data: comment
+                }
+            });
         }
 
         return comment;
