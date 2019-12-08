@@ -196,9 +196,7 @@ const Mutation = {
             throw new Error('Can not delete comment.');
         }
 
-        const post = db.posts.find(post => post.id === comment.post);
-
-        pubsub.publish(`comment ${post.id}`, {
+        pubsub.publish(`comment ${comment.post}`, {
             comment: {
                 mutation: 'DELETED',
                 data: comment
@@ -217,8 +215,7 @@ const Mutation = {
 
         if (typeof data.text === 'string') {
             comment.text = data.text;
-            const post = db.posts.find(post => post.id === comment.post);
-            pubsub.publish(`comment ${post.id}`, {
+            pubsub.publish(`comment ${comment.post}`, {
                 comment: {
                     mutation: 'UPDATED',
                     data: comment
